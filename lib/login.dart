@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -14,47 +16,82 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  void showLoadingState() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            title: Center(child: Text('Loading...')),
+            content: SizedBox(
+              height: 50,
+              width: 50,
+              child: Center(
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            actions: [],
+          );
+        });
+  }
+
+  void showErrorState() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Login Failed'),
+          content:
+              const Text('Invalid username or password. Please try again.'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _login() async {
-    const String loginUrl = 'https://fashionbiz.org/';
+    const String loginUrl = 'https://fashionbiz.org/api/auth';
     const String serverKey =
         '1eca16c1127fcaf8266a3ae56dffb540f5eaac9f-889fe0e508bf0365111cc95114e29263-88061744';
     const String deviceType = 'Phone';
 
-    final Map<String, dynamic> requestBody = {
+    // Show loading state
+    showLoadingState();
+
+    // Parse url
+    var url = Uri.parse(loginUrl);
+
+    // Create a FormData object
+    var formData = http.MultipartRequest('POST', url);
+
+    // Add form fields or files
+    formData.fields.addAll({
       'username': _usernameController.text,
       'password': _passwordController.text,
       'server_key': serverKey,
       'device_type': deviceType,
-    };
+    });
 
-    final response = await http.post(Uri.parse(loginUrl),
-        body: jsonEncode(requestBody),
-        headers: {'Content-Type': 'application/json'});
+    var response = await formData.send();
+    final respStr = await http.Response.fromStream(response);
 
-    if (response.statusCode == 200) {
+    var result = jsonDecode(respStr.body);
+
+    if (result["api_status"] == 200) {
+      Navigator.pop(context);
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Login Failed'),
-            content:
-                const Text('Invalid username or password. Please try again.'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                child: const Text('OK'),
-              ),
-            ],
-          );
-        },
-      );
+      Navigator.pop(context);
+      showErrorState();
     }
   }
 
@@ -161,12 +198,12 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 10.0),
                   Row(
                     children: [
-                      CheckboxWidget(),
+                      const CheckBoxWidget(),
                       const Text(
                         'Remember this device',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                          fontSize: 12,
                           color: Colors.white,
                         ),
                       ),
@@ -177,7 +214,7 @@ class _LoginPageState extends State<LoginPage> {
                           'Forgot password?',
                           style: TextStyle(
                             color: Color(0xffFFD700),
-                            fontSize: 16,
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -217,12 +254,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-class CheckboxWidget extends StatefulWidget {
+class CheckBoxWidget extends StatefulWidget {
+  const CheckBoxWidget({super.key});
+
   @override
-  _CheckboxWidgetState createState() => _CheckboxWidgetState();
+  State<CheckBoxWidget> createState() => _CheckBoxWidgetState();
 }
 
-class _CheckboxWidgetState extends State<CheckboxWidget> {
+class _CheckBoxWidgetState extends State<CheckBoxWidget> {
   bool rememberDevice = false;
 
   @override
